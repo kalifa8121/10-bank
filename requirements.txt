@@ -1,5 +1,3 @@
-Flask
-Werkzeug
-git add .
+
 Flask
 gunicorn
