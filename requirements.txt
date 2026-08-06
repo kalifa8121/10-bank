@@ -2,3 +2,5 @@ Flask
 Werkzeug
 git init
 git add .
+Flask
+gunicorn
