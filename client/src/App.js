@@ -18,71 +18,47 @@ function App() {
     socket = io(BACKEND_URL);
 
     socket.on('user-connected', async (userId) => {
-      console.log("User connected:", userId);
       const peerConnection = createPeerConnection(userId, socket);
       peersRef.current[userId] = peerConnection;
 
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => {
-          peerConnection.addTrack(track, localStreamRef.current);
-        });
-      }
+      localStreamRef.current.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStreamRef.current);
+      });
 
-      try {
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        socket.emit('offer', { target: userId, offer });
-      } catch (err) {
-        console.error("Error creating offer:", err);
-      }
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit('offer', { target: userId, offer });
     });
 
     socket.on('offer', async ({ offer, sender }) => {
-      console.log("Received offer from:", sender);
       const peerConnection = createPeerConnection(sender, socket);
       peersRef.current[sender] = peerConnection;
 
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => {
-          peerConnection.addTrack(track, localStreamRef.current);
-        });
-      }
+      localStreamRef.current.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStreamRef.current);
+      });
 
-      try {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        socket.emit('answer', { target: sender, answer });
-      } catch (err) {
-        console.error("Error handling offer:", err);
-      }
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      socket.emit('answer', { target: sender, answer });
     });
 
     socket.on('answer', async ({ answer, sender }) => {
-      console.log("Received answer from:", sender);
       const pc = peersRef.current[sender];
       if (pc) {
-        try {
-          await pc.setRemoteDescription(new RTCSessionDescription(answer));
-        } catch (err) {
-          console.error("Error setting remote description from answer:", err);
-        }
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
       }
     });
 
     socket.on('ice-candidate', async ({ candidate, sender }) => {
       const pc = peersRef.current[sender];
       if (pc && candidate) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch (err) {
-          console.error("Error adding received ice candidate", err);
-        }
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
       }
     });
 
     socket.on('user-disconnected', (userId) => {
-      console.log("User disconnected:", userId);
       if (peersRef.current[userId]) {
         peersRef.current[userId].close();
         delete peersRef.current[userId];
@@ -99,19 +75,9 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
-    if (inRoom && localStreamRef.current && myVideoRef.current) {
-      myVideoRef.current.srcObject = localStreamRef.current;
-      myVideoRef.current.play().catch(err => console.log("Video play error:", err));
-    }
-  }, [inRoom]);
-
   const createPeerConnection = (userId, socketInstance) => {
     const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     });
 
     pc.onicecandidate = (event) => {
@@ -121,24 +87,30 @@ function App() {
     };
 
     pc.ontrack = (event) => {
-      console.log("Received track from user:", userId, event.streams[0]);
       setStreams(prev => ({ ...prev, [userId]: event.streams[0] }));
     };
 
     return pc;
   };
 
-  const joinRoom = async (e) => {
+ const joinRoom = async (e) => {
     e.preventDefault();
     if (!roomCode) return;
 
     try {
+      // Jalqaba kaameeraa fi maayikiroofoonii gaafadhu
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: "user" }, 
         audio: true 
       });
       
       localStreamRef.current = stream;
+      
+      // Viidiyoon calqabaa (Self) kallattiin akka qabatu godhi
+      if (myVideoRef.current) {
+        myVideoRef.current.srcObject = stream;
+        myVideoRef.current.play().catch(err => console.log("Play error:", err));
+      }
 
       await fetch(`${BACKEND_URL}/api/room`, {
         method: 'POST',
@@ -153,7 +125,6 @@ function App() {
       alert("Kaameeraa ykn maayikiroofoonii argachuu hin danda'amne. Heeyyama mirkaneessi!");
     }
   };
-
   return (
     <div className="container">
       <h1>Aappii Sagalee fi Viidiyoo (Dhuunfaa & Garee)</h1>
@@ -170,12 +141,7 @@ function App() {
       ) : (
         <div className="video-grid">
           <div className="video-box">
-            <video 
-              ref={myVideoRef} 
-              autoPlay 
-              muted 
-              playsInline 
-            />
+            <video ref={myVideoRef} autoPlay muted playsInline />
             <span>Ani (Self)</span>
           </div>
           {Object.entries(streams).map(([userId, stream]) => (
@@ -183,12 +149,7 @@ function App() {
               <video 
                 autoPlay 
                 playsInline 
-                ref={el => { 
-                  if (el && el.srcObject !== stream) {
-                    el.srcObject = stream;
-                    el.play().catch(e => console.log("Peer video play error:", e));
-                  }
-                }} 
+                ref={el => { if (el) el.srcObject = stream; }} 
               />
               <span>Hirmaataa</span>
             </div>
