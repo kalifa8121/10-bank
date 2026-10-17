@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import './App.css';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+// URL backend Render irra jiru asitti galchi (ykn .env keessatti)
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://one0-bank-1z4r.onrender.com";
 let socket;
 
 function App() {
@@ -21,7 +22,6 @@ function App() {
       const peerConnection = createPeerConnection(userId, socket);
       peersRef.current[userId] = peerConnection;
 
-      // Local stream tracks add gochuu
       localStreamRef.current.getTracks().forEach(track => {
         peerConnection.addTrack(track, localStreamRef.current);
       });
