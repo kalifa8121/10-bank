@@ -10,6 +10,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Kanaan "Cannot GET /" jedhu hambisna
+app.get('/', (req, res) => {
+  res.send('Video Call Server is running successfully! 🚀');
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -18,7 +23,6 @@ const io = new Server(server, {
   }
 });
 
-// Room uumuu ykn mirkaneessuuf
 app.post('/api/room', async (req, res) => {
   const { roomCode } = req.body;
   try {
@@ -32,15 +36,11 @@ app.post('/api/room', async (req, res) => {
   }
 });
 
-// Socket.io WebRTC Signaling
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   socket.on('join-room', (roomCode) => {
     socket.join(roomCode);
-    console.log(`User ${socket.id} joined room: ${roomCode}`);
-    
-    // Namoota biroo kutaa kana keessa jiran beeksisuuf
     socket.to(roomCode).emit('user-connected', socket.id);
 
     socket.on('offer', (data) => {
@@ -57,7 +57,6 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
       socket.to(roomCode).emit('user-disconnected', socket.id);
-      console.log('User disconnected:', socket.id);
     });
   });
 });
