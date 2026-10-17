@@ -18,6 +18,7 @@ function App() {
     socket = io(BACKEND_URL);
 
     socket.on('user-connected', async (userId) => {
+      console.log("User connected:", userId);
       const peerConnection = createPeerConnection(userId, socket);
       peersRef.current[userId] = peerConnection;
 
@@ -27,12 +28,17 @@ function App() {
         });
       }
 
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-      socket.emit('offer', { target: userId, offer });
+      try {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        socket.emit('offer', { target: userId, offer });
+      } catch (err) {
+        console.error("Error creating offer:", err);
+      }
     });
 
     socket.on('offer', async ({ offer, sender }) => {
+      console.log("Received offer from:", sender);
       const peerConnection = createPeerConnection(sender, socket);
       peersRef.current[sender] = peerConnection;
 
@@ -42,27 +48,41 @@ function App() {
         });
       }
 
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-      socket.emit('answer', { target: sender, answer });
+      try {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        socket.emit('answer', { target: sender, answer });
+      } catch (err) {
+        console.error("Error handling offer:", err);
+      }
     });
 
     socket.on('answer', async ({ answer, sender }) => {
+      console.log("Received answer from:", sender);
       const pc = peersRef.current[sender];
       if (pc) {
-        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        } catch (err) {
+          console.error("Error setting remote description from answer:", err);
+        }
       }
     });
 
     socket.on('ice-candidate', async ({ candidate, sender }) => {
       const pc = peersRef.current[sender];
       if (pc && candidate) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.error("Error adding received ice candidate", err);
+        }
       }
     });
 
     socket.on('user-disconnected', (userId) => {
+      console.log("User disconnected:", userId);
       if (peersRef.current[userId]) {
         peersRef.current[userId].close();
         delete peersRef.current[userId];
@@ -79,7 +99,6 @@ function App() {
     };
   }, []);
 
-  // Yeroo inRoom true ta'u (kutaa seennaan) video stream battalumatti qabsiisuuf
   useEffect(() => {
     if (inRoom && localStreamRef.current && myVideoRef.current) {
       myVideoRef.current.srcObject = localStreamRef.current;
@@ -89,7 +108,10 @@ function App() {
 
   const createPeerConnection = (userId, socketInstance) => {
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
     });
 
     pc.onicecandidate = (event) => {
@@ -99,6 +121,7 @@ function App() {
     };
 
     pc.ontrack = (event) => {
+      console.log("Received track from user:", userId, event.streams[0]);
       setStreams(prev => ({ ...prev, [userId]: event.streams[0] }));
     };
 
@@ -161,9 +184,9 @@ function App() {
                 autoPlay 
                 playsInline 
                 ref={el => { 
-                  if (el) {
+                  if (el && el.srcObject !== stream) {
                     el.srcObject = stream;
-                    el.play().catch(e => console.log(e));
+                    el.play().catch(e => console.log("Peer video play error:", e));
                   }
                 }} 
               />
