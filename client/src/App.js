@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import './App.css';
 
-// URL backend Render irra jiru asitti galchi (ykn .env keessatti)
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://one0-bank-1z4r.onrender.com";
 let socket;
 
