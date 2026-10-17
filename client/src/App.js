@@ -79,6 +79,14 @@ function App() {
     };
   }, []);
 
+  // Yeroo inRoom true ta'u (kutaa seennaan) video stream battalumatti qabsiisuuf
+  useEffect(() => {
+    if (inRoom && localStreamRef.current && myVideoRef.current) {
+      myVideoRef.current.srcObject = localStreamRef.current;
+      myVideoRef.current.play().catch(err => console.log("Video play error:", err));
+    }
+  }, [inRoom]);
+
   const createPeerConnection = (userId, socketInstance) => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -102,19 +110,12 @@ function App() {
     if (!roomCode) return;
 
     try {
-      // Moobayilaaf kaameeraa fi sagalee mirkaneessuun gaafachuu
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: "user" }, 
         audio: true 
       });
       
       localStreamRef.current = stream;
-
-      // Viidiyoo ofii (Self) battalumatti agarsiisuu
-      if (myVideoRef.current) {
-        myVideoRef.current.srcObject = stream;
-        myVideoRef.current.play().catch(err => console.log("Video play error:", err));
-      }
 
       await fetch(`${BACKEND_URL}/api/room`, {
         method: 'POST',
@@ -126,7 +127,7 @@ function App() {
       setInRoom(true);
     } catch (err) {
       console.error("Camera access error:", err);
-      alert("Kaameeraa ykn maayikiroofoonii argachuu hin danda'amne. Heeyyama (permission) browser kee mirkaneessi!");
+      alert("Kaameeraa ykn maayikiroofoonii argachuu hin danda'amne. Heeyyama mirkaneessi!");
     }
   };
 
