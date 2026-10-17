@@ -21,9 +21,11 @@ function App() {
       const peerConnection = createPeerConnection(userId, socket);
       peersRef.current[userId] = peerConnection;
 
-      localStreamRef.current.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStreamRef.current);
-      });
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStreamRef.current);
+        });
+      }
 
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
@@ -34,9 +36,11 @@ function App() {
       const peerConnection = createPeerConnection(sender, socket);
       peersRef.current[sender] = peerConnection;
 
-      localStreamRef.current.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStreamRef.current);
-      });
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStreamRef.current);
+        });
+      }
 
       await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await peerConnection.createAnswer();
@@ -98,20 +102,31 @@ function App() {
     if (!roomCode) return;
 
     try {
+      // Moobayilaaf kaameeraa fi sagalee mirkaneessuun gaafachuu
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user" }, 
+        audio: true 
+      });
+      
+      localStreamRef.current = stream;
+
+      // Viidiyoo ofii (Self) battalumatti agarsiisuu
+      if (myVideoRef.current) {
+        myVideoRef.current.srcObject = stream;
+        myVideoRef.current.play().catch(err => console.log("Video play error:", err));
+      }
+
       await fetch(`${BACKEND_URL}/api/room`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roomCode })
       });
 
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localStreamRef.current = stream;
-      if (myVideoRef.current) myVideoRef.current.srcObject = stream;
-
       socket.emit('join-room', roomCode);
       setInRoom(true);
     } catch (err) {
-      alert("Kutaa seenuu hin danda'amne, irra deebi'ii yaali.");
+      console.error("Camera access error:", err);
+      alert("Kaameeraa ykn maayikiroofoonii argachuu hin danda'amne. Heeyyama (permission) browser kee mirkaneessi!");
     }
   };
 
@@ -131,7 +146,12 @@ function App() {
       ) : (
         <div className="video-grid">
           <div className="video-box">
-            <video ref={myVideoRef} autoPlay muted playsInline />
+            <video 
+              ref={myVideoRef} 
+              autoPlay 
+              muted 
+              playsInline 
+            />
             <span>Ani (Self)</span>
           </div>
           {Object.entries(streams).map(([userId, stream]) => (
@@ -139,7 +159,12 @@ function App() {
               <video 
                 autoPlay 
                 playsInline 
-                ref={el => { if (el) el.srcObject = stream; }} 
+                ref={el => { 
+                  if (el) {
+                    el.srcObject = stream;
+                    el.play().catch(e => console.log(e));
+                  }
+                }} 
               />
               <span>Hirmaataa</span>
             </div>
